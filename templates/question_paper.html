@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Practice Paper #{{ paper.id }} — {{ paper.subject.name }}{% endblock %}
+{% block page_title %}Practice Paper #{{ paper.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Top Action Toolbar (Print option removed as requested) -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i> Back to History
+            </a>
+            <span class="badge {% if paper.status == 'submitted' %}bg-success{% else %}bg-warning text-dark{% endif %} px-2.5 py-1.5 rounded-pill">
+                <i class="bi {% if paper.status == 'submitted' %}bi-check-circle-fill{% else %}bi-clock-fill{% endif %} me-1"></i>
+                {{ paper.status|capitalize }}
+            </span>
+            {% if paper.generation_mode and 'AI' in paper.generation_mode %}
+                <span class="badge badge-ai rounded-pill ms-1">
+                    <i class="bi bi-stars"></i> AI Generated
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('download_pdf', paper_id=paper.id) }}" class="btn btn-outline-danger">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF
+            </a>
+            {% if paper.status == 'submitted' %}
+                <a href="{{ url_for('results', paper_id=paper.id) }}" class="btn btn-success">
+                    <i class="bi bi-award-fill me-1"></i> View Results
+                </a>
+            {% else %}
+                <a href="{{ url_for('attempt_paper', paper_id=paper.id) }}" class="btn btn-primary-custom">
+                    <i class="bi bi-pencil-square me-1"></i> Attempt Paper
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Adaptive Distribution Rationale Banner -->
+    <div class="rationale-card">
+        <h5><i class="bi bi-cpu-fill text-primary"></i> Adaptive Marks Allocation</h5>
+        <p class="text-secondary small mb-2">
+            This paper was dynamically calibrated to match your current performance profile:
+        </p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for item in chapter_distribution %}
+                <div class="bg-white border rounded-pill px-3 py-1 shadow-sm small">
+                    <strong class="text-dark">{{ item.chapter_name }}:</strong> 
+                    <span class="text-primary fw-bold">{{ item.marks }} Marks</span> 
+                    <span class="text-muted">({{ item.percentage }}%)</span>
+                </div>
+            {% endfor %}
+        </div>
+        {% if paper.distribution_explanation %}
+            <div class="bg-white bg-opacity-75 p-2.5 rounded-3 border border-primary border-opacity-25 small text-secondary">
+                <div class="fw-bold mb-1 text-dark"><i class="bi bi-info-circle me-1"></i> Adaptive Rationale:</div>
+                <div style="white-space: pre-line;">{{ paper.distribution_explanation }}</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Paper Sheet Container -->
+    <div class="paper-sheet shadow-sm mb-5">
+        <!-- Exam Header -->
+        <div class="paper-header">
+            <h2>CENTRAL BOARD PRACTICE EXAMINATION</h2>
+            <h3>{{ paper.subject.name|upper }} — CLASS {{ paper.subject.class_level }}</h3>
+            
+            <div class="paper-meta-grid">
+                <div class="text-start">
+                    <span class="text-muted">Maximum Marks:</span> <strong>{{ paper.total_marks }} Marks</strong>
+                </div>
+                <div class="text-end">
+                    <span class="text-muted">Paper ID:</span> <strong>#{{ paper.id }}</strong>
+                </div>
+                <div class="text-start">
+                    <span class="text-muted">Standard:</span> <strong>Class {{ paper.subject.class_level }} CBSE</strong>
+                </div>
+                <div class="text-end">
+                    <span class="text-muted">Date:</span> <strong>{{ paper.created_at.strftime('%d %B %Y') }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- General Instructions -->
+        <div class="mb-4 p-3 bg-light rounded-3 border">
+            <h6 class="fw-bold text-dark mb-2">General Instructions:</h6>
+            <ol class="small text-secondary mb-0 ps-3">
+                <li>This question paper contains <strong>{{ paper.paper_questions|length }} questions</strong> totaling exactly <strong>{{ paper.total_marks }} marks</strong>.</li>
+                <li>All questions are compulsory.</li>
+                <li><strong>Section A:</strong> 1-mark objective questions/MCQs.</li>
+                <li><strong>Section B:</strong> 2-mark short answer questions.</li>
+                <li><strong>Section C:</strong> 3-mark short answer questions.</li>
+                <li><strong>Section D:</strong> 4-5 mark long answer questions.</li>
+                <li>Write neat and clear steps for all questions.</li>
+            </ol>
+        </div>
+
+        <!-- Group Questions by Section -->
+        {% set sec_a = paper.paper_questions|selectattr('marks_allocated', 'equalto', 1)|list %}
+        {% set sec_b = paper.paper_questions|selectattr('marks_allocated', 'equalto', 2)|list %}
+        {% set sec_c = paper.paper_questions|selectattr('marks_allocated', 'equalto', 3)|list %}
+        {% set sec_d = paper.paper_questions|selectattr('marks_allocated', 'ge', 4)|list %}
+
+        <!-- Section A -->
+        {% if sec_a %}
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-dark mb-0">SECTION A (1 Mark Questions)</h5>
+                    <span class="badge bg-light text-dark border">{{ sec_a|length }} Questions</span>
+                </div>
+                {% for pq in sec_a %}
+                    <div class="question-box">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <span class="question-num me-1">Q{{ pq.order_index }}.</span>
+                                <span class="text-dark">{{ pq.question.question_text }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                <span class="badge bg-light text-secondary border small">{{ pq.question.chapter.name }}</span>
+                                <span class="question-marks-badge">[{{ pq.marks_allocated }} M]</span>
+                            </div>
+                        </div>
+                        {% if pq.question.options %}
+                            <div class="row g-2 mt-1">
+                                {% for opt in pq.question.options %}
+                                    <div class="col-sm-6">
+                                        <div class="p-2 border rounded-3 bg-light small">{{ opt }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Section B -->
+        {% if sec_b %}
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-dark mb-0">SECTION B (2 Mark Questions)</h5>
+                    <span class="badge bg-light text-dark border">{{ sec_b|length }} Questions</span>
+                </div>
+                {% for pq in sec_b %}
+                    <div class="question-box">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <span class="question-num me-1">Q{{ pq.order_index }}.</span>
+                                <span class="text-dark">{{ pq.question.question_text }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                <span class="badge bg-light text-secondary border small">{{ pq.question.chapter.name }}</span>
+                                <span class="question-marks-badge">[{{ pq.marks_allocated }} Marks]</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Section C -->
+        {% if sec_c %}
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-dark mb-0">SECTION C (3 Mark Questions)</h5>
+                    <span class="badge bg-light text-dark border">{{ sec_c|length }} Questions</span>
+                </div>
+                {% for pq in sec_c %}
+                    <div class="question-box">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <span class="question-num me-1">Q{{ pq.order_index }}.</span>
+                                <span class="text-dark">{{ pq.question.question_text }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                <span class="badge bg-light text-secondary border small">{{ pq.question.chapter.name }}</span>
+                                <span class="question-marks-badge">[{{ pq.marks_allocated }} Marks]</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Section D -->
+        {% if sec_d %}
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-dark mb-0">SECTION D (Long Answer Questions)</h5>
+                    <span class="badge bg-light text-dark border">{{ sec_d|length }} Questions</span>
+                </div>
+                {% for pq in sec_d %}
+                    <div class="question-box">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <span class="question-num me-1">Q{{ pq.order_index }}.</span>
+                                <span class="text-dark">{{ pq.question.question_text }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                <span class="badge bg-light text-secondary border small">{{ pq.question.chapter.name }}</span>
+                                <span class="question-marks-badge">[{{ pq.marks_allocated }} Marks]</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Bottom Action CTA -->
+        <div class="text-center pt-4 border-top">
+            {% if paper.status == 'submitted' %}
+                <a href="{{ url_for('results', paper_id=paper.id) }}" class="btn btn-success px-4 py-2">
+                    <i class="bi bi-award-fill me-1"></i> View Solutions & Analysis
+                </a>
+            {% else %}
+                <a href="{{ url_for('attempt_paper', paper_id=paper.id) }}" class="btn btn-primary-custom px-4 py-2">
+                    <i class="bi bi-pencil-square me-1"></i> Ready to Practice? Enter Marks
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

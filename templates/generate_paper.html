@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Practice Paper — Adaptive & AI{% endblock %}
+{% block page_title %}Generate Practice Question Paper{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <form action="{{ url_for('generate_paper') }}" method="POST" id="generatePaperForm">
+        <div class="row g-4">
+            <!-- Left Column: Configuration Controls -->
+            <div class="col-lg-7">
+                <!-- Step 1: Mode & Subject Selection -->
+                <div class="custom-card mb-4">
+                    <div class="custom-card-header">
+                        <h2 class="custom-card-title"><i class="bi bi-sliders text-primary"></i>1. Subject & Question Source</h2>
+                    </div>
+                    <div class="custom-card-body">
+                        <!-- Mode Selector: Bank vs AI -->
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-secondary mb-2">Generation Source Mode</label>
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <label class="p-3 border rounded-3 d-flex align-items-center gap-3 cursor-pointer w-100 bg-light" id="labelModeCurriculum" style="transition: all 0.2s;">
+                                        <input class="form-check-input mt-0" type="radio" name="generation_mode" value="Curriculum" checked onchange="handleModeChange(this.value)">
+                                        <div>
+                                            <div class="fw-bold text-dark"><i class="bi bi-database me-1 text-primary"></i> Curriculum Bank</div>
+                                            <div class="small text-muted">Verified CBSE Board Questions</div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="p-3 border rounded-3 d-flex align-items-center gap-3 cursor-pointer w-100 bg-light" id="labelModeAI" style="transition: all 0.2s;">
+                                        <input class="form-check-input mt-0" type="radio" name="generation_mode" value="AI (LLM)" onchange="handleModeChange(this.value)">
+                                        <div>
+                                            <div class="fw-bold text-purple" style="color: #7c3aed;"><i class="bi bi-stars me-1"></i> AI Generated (LLM)</div>
+                                            <div class="small text-muted">Fresh synthesized questions</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Custom Focus Prompt (Shown when AI Mode is selected) -->
+                        <div id="aiPromptSection" class="mb-4 p-3 rounded-3 bg-purple bg-opacity-10 border border-purple border-opacity-25" style="display: none;">
+                            <label for="custom_prompt" class="form-label small fw-bold text-purple mb-1">
+                                <i class="bi bi-stars me-1"></i> Custom AI Focus / Exam Instructions (Optional)
+                            </label>
+                            <input type="text" name="custom_prompt" id="custom_prompt" class="form-control" placeholder="e.g. Focus on word problems and application of trigonometric ratios...">
+                            <div class="small text-muted mt-1">Gemini AI will synthesize questions matching your exact instructions!</div>
+                        </div>
+
+                        <!-- Subject Selection -->
+                        <div class="mb-4">
+                            <label for="subject_id" class="form-label small fw-bold text-secondary">Subject & Standard</label>
+                            <select name="subject_id" id="subject_id" class="form-select form-select-lg fs-6" required>
+                                {% for sub in subjects %}
+                                    <option value="{{ sub.id }}" {% if sub.name == 'Mathematics' and sub.class_level == 10 %}selected{% endif %}>
+                                        Class {{ sub.class_level }} — {{ sub.name }} ({{ sub.chapters|length }} Chapters Available)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Chapters Multi-Select Checkboxes with Mastery Indicators -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-bold text-secondary mb-0">Select Chapters for Practice</label>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnSelectAll">Select All</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnDeselectAll">Clear</button>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group border rounded-3 p-2 bg-light bg-opacity-50" id="chaptersContainer">
+                                {% for sub in subjects %}
+                                    {% for ch in sub.chapters %}
+                                        {% set perf = topic_perf_map.get(ch.id) %}
+                                        <label class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2.5 px-3 rounded-3 border-0 mb-1 chapter-item" data-subject-id="{{ sub.id }}">
+                                            <div class="d-flex align-items-center gap-2.5">
+                                                <input class="form-check-input me-1" type="checkbox" name="chapter_ids" value="{{ ch.id }}" 
+                                                       {% if sub.name == 'Mathematics' and sub.class_level == 10 %}checked{% endif %}>
+                                                <div>
+                                                    <span class="fw-bold text-dark">{{ ch.name }}</span>
+                                                    <div class="small text-muted">{{ ch.questions|length }} questions in bank</div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                {% if perf and perf.has_data %}
+                                                    {% if perf.status == 'Weak' %}
+                                                        <span class="badge-status badge-weak"><i class="bi bi-exclamation-circle-fill"></i> Needs Practice</span>
+                                                    {% elif perf.status == 'Average' %}
+                                                        <span class="badge-status badge-average"><i class="bi bi-dash-circle-fill"></i> Getting Better</span>
+                                                    {% elif perf.status == 'Strong' %}
+                                                        <span class="badge-status badge-strong"><i class="bi bi-check-circle-fill"></i> Mastered!</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="badge-status badge-unattempted">New Topic</span>
+                                                {% endif %}
+                                            </div>
+                                        </label>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                            <div class="form-text mt-2">Questions will be adaptively balanced with extra focus on your weak chapters.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Paper Settings Card -->
+                <div class="custom-card">
+                    <div class="custom-card-header">
+                        <h2 class="custom-card-title"><i class="bi bi-gear-fill text-primary"></i>2. Paper Size & Difficulty</h2>
+                    </div>
+                    <div class="custom-card-body">
+                        <div class="mb-4">
+                            <label for="total_marks" class="form-label small fw-bold text-secondary">Total Paper Marks</label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" name="total_marks" id="total_marks" class="form-control fw-bold text-primary" value="30" min="10" max="100" step="1" required>
+                                <span class="input-group-text">Marks</span>
+                            </div>
+                            <div class="d-flex gap-2 mt-2 flex-wrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary preset-mark-btn rounded-pill px-3" data-marks="20">20 M (Quick Quiz)</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary preset-mark-btn rounded-pill px-3" data-marks="30">30 M (Standard Practice)</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary preset-mark-btn rounded-pill px-3" data-marks="50">50 M (Unit Test)</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary preset-mark-btn rounded-pill px-3" data-marks="80">80 M (Full Board Exam)</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="difficulty_preference" class="form-label small fw-bold text-secondary">Difficulty Level</label>
+                            <select name="difficulty_preference" id="difficulty_preference" class="form-select">
+                                <option value="Mixed" selected>Mixed (CBSE Standard Pattern: 30% Easy, 50% Medium, 20% Hard)</option>
+                                <option value="Easy">Easy (Standard formulas & direct applications)</option>
+                                <option value="Medium">Medium (Conceptual proofs and standard problems)</option>
+                                <option value="Hard">Hard (Multi-step problem solving & advanced proofs)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Live Adaptive Preview & Submit -->
+            <div class="col-lg-5">
+                <div class="custom-card sticky-top shadow-sm" style="top: 90px;">
+                    <div class="custom-card-header bg-light">
+                        <h2 class="custom-card-title"><i class="bi bi-diagram-3-fill text-primary"></i>Live Marks Distribution</h2>
+                        <span class="badge bg-primary">Dynamic</span>
+                    </div>
+                    <div class="custom-card-body">
+                        <p class="text-secondary small mb-3">
+                            Here is how the adaptive engine allocates question marks based on your past performance:
+                        </p>
+
+                        <!-- Dynamic container filled by paper.js -->
+                        <div id="adaptivePreviewContainer">
+                            <div class="text-center py-4 text-muted small">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                Calculating topic weights...
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary-custom btn-lg shadow-sm" id="btnSubmitGenerate">
+                                <i class="bi bi-magic me-2"></i> Start Practice Paper
+                            </button>
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/paper.js') }}"></script>
+<script>
+    function handleModeChange(mode) {
+        const aiPromptSec = document.getElementById('aiPromptSection');
+        const submitBtn = document.getElementById('btnSubmitGenerate');
+        if (mode === 'AI (LLM)') {
+            if (aiPromptSec) aiPromptSec.style.display = 'block';
+            if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-stars me-2"></i> Start Practice Paper with AI';
+        } else {
+            if (aiPromptSec) aiPromptSec.style.display = 'none';
+            if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-magic me-2"></i> Start Practice Paper';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Preset mark buttons
+        document.querySelectorAll('.preset-mark-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const marksInput = document.getElementById('total_marks');
+                marksInput.value = btn.dataset.marks;
+                marksInput.dispatchEvent(new Event('input'));
+            });
+        });
+
+        // Subject filter for chapters list
+        const subjectSelect = document.getElementById('subject_id');
+        const chapterItems = document.querySelectorAll('.chapter-item');
+
+        function filterChaptersBySubject() {
+            const selectedSubId = subjectSelect.value;
+            chapterItems.forEach(item => {
+                if (item.dataset.subjectId === selectedSubId) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                    item.querySelector('input[type="checkbox"]').checked = false;
+                }
+            });
+            const marksInput = document.getElementById('total_marks');
+            if (marksInput) marksInput.dispatchEvent(new Event('input'));
+        }
+
+        subjectSelect.addEventListener('change', filterChaptersBySubject);
+        filterChaptersBySubject();
+
+        // Select All / Deselect buttons
+        document.getElementById('btnSelectAll')?.addEventListener('click', () => {
+            const selectedSubId = subjectSelect.value;
+            chapterItems.forEach(item => {
+                if (item.dataset.subjectId === selectedSubId) {
+                    item.querySelector('input[type="checkbox"]').checked = true;
+                }
+            });
+            document.getElementById('total_marks')?.dispatchEvent(new Event('input'));
+        });
+
+        document.getElementById('btnDeselectAll')?.addEventListener('click', () => {
+            chapterItems.forEach(item => {
+                item.querySelector('input[type="checkbox"]').checked = false;
+            });
+            document.getElementById('total_marks')?.dispatchEvent(new Event('input'));
+        });
+    });
+</script>
+{% endblock %}

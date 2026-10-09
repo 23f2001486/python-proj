@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard — CBSE Adaptive Practice{% endblock %}
+{% block page_title %}Learning Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Top Header: ONLY place on Dashboard with 'Start Practice Paper' button -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="h3 fw-extrabold text-dark mb-1">
+                Hi, {{ current_student.name if current_student else 'Student' }}! 👋
+            </h2>
+            <p class="text-secondary mb-0">
+                Class {{ current_student.class_level if current_student else 10 }} CBSE Practice • Topic Mastery & Performance Overview
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('generate_paper') }}" class="btn btn-primary-custom px-4 py-2 shadow-sm">
+                <i class="bi bi-magic me-1.5"></i> Start Practice Paper
+            </a>
+        </div>
+    </div>
+
+    <!-- Row 1: 4 Key Metric Stat Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Papers Created</div>
+                    <div class="stat-value text-primary">{{ metrics.total_papers_generated }}</div>
+                </div>
+                <div class="stat-icon blue">
+                    <i class="bi bi-file-earmark-text-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Tests Completed</div>
+                    <div class="stat-value text-success">{{ metrics.total_attempts_completed }}</div>
+                </div>
+                <div class="stat-icon green">
+                    <i class="bi bi-check2-circle"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Average Score</div>
+                    <div class="stat-value text-purple" style="color: #7c3aed;">
+                        {% if metrics.total_attempts_completed > 0 %}
+                            {{ metrics.average_score_percentage }}%
+                        {% else %}
+                            <span class="text-muted fs-4">New</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="stat-icon purple">
+                    <i class="bi bi-award-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Weak Topics</div>
+                    <div class="stat-value text-danger">{{ metrics.weak_topics_count }} <span class="fs-6 text-muted fw-normal">Topics</span></div>
+                </div>
+                <div class="stat-icon red">
+                    <i class="bi bi-bullseye"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Identified Weak Topics (Clean & Simple) -->
+    <div class="custom-card mb-4">
+        <div class="custom-card-header">
+            <h2 class="custom-card-title">
+                <i class="bi bi-exclamation-circle-fill text-danger"></i>
+                Weak Topics (Need Improvement)
+            </h2>
+            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2.5 py-1">
+                {{ metrics.weak_topics|length }} Identified
+            </span>
+        </div>
+        <div class="custom-card-body p-0">
+            {% if metrics.weak_topics and metrics.weak_topics|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th class="ps-4">Chapter Name</th>
+                                <th>Subject</th>
+                                <th>Mastery Level</th>
+                                <th>Recent Score</th>
+                                <th>Attempts</th>
+                                <th class="pe-4">Recommendation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wt in metrics.weak_topics %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-dark">{{ wt.chapter_name }}</td>
+                                    <td><span class="badge bg-light text-secondary border">{{ wt.subject_name }}</span></td>
+                                    <td style="min-width: 140px;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-bold text-danger small">{{ wt.mastery_score }}%</span>
+                                            <div class="progress flex-grow-1" style="height: 6px; border-radius: 6px;">
+                                                <div class="progress-bar bg-danger" role="progressbar" style="width: {{ wt.mastery_score }}%;"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="fw-semibold text-secondary small">{{ wt.latest_score_percentage }}%</span></td>
+                                    <td><span class="badge bg-light text-dark border">{{ wt.attempts }}</span></td>
+                                    <td class="pe-4 small text-secondary">
+                                        <i class="bi bi-info-circle text-danger me-1"></i> {{ wt.recommendation }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted small">
+                    <i class="bi bi-check-circle-fill text-success fs-4 d-block mb-1"></i>
+                    No weak topics identified. All attempted chapters meet the mastery threshold.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Row 3: Past Mistakes Log (Clean & Simple) -->
+    <div class="custom-card mb-4">
+        <div class="custom-card-header">
+            <h2 class="custom-card-title">
+                <i class="bi bi-journal-x text-warning-emphasis"></i>
+                Past Mistakes Log
+            </h2>
+            <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-secondary">View All Tests</a>
+        </div>
+        <div class="custom-card-body p-0">
+            {% if metrics.mistakes_log and metrics.mistakes_log|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th class="ps-4" style="width: 32%;">Question & Chapter</th>
+                                <th style="width: 12%;">Score</th>
+                                <th style="width: 25%;">Your Answer</th>
+                                <th style="width: 31%;" class="pe-4">Correct Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in metrics.mistakes_log %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-dark small mb-1">{{ m.question_text }}</div>
+                                        <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                            <span class="badge bg-light text-secondary border small" style="font-size: 0.72rem;">{{ m.chapter_name }}</span>
+                                            <span class="badge bg-light text-muted border small" style="font-size: 0.72rem;">{{ m.question_type }}</span>
+                                            <span class="text-muted" style="font-size: 0.72rem;">• Paper #{{ m.paper_id }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 small">
+                                            {{ m.marks_obtained }} / {{ m.marks_allocated }} M
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-secondary p-2 bg-light rounded-2 border">
+                                            {{ m.student_answer }}
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <div class="small text-dark fw-semibold p-2 bg-success bg-opacity-10 rounded-2 border border-success border-opacity-25">
+                                            {{ m.correct_answer }}
+                                        </div>
+                                        {% if m.explanation %}
+                                            <div class="text-muted mt-1" style="font-size: 0.78rem;">
+                                                <i class="bi bi-lightbulb text-warning me-1"></i> {{ m.explanation }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted small">
+                    <i class="bi bi-check2-all text-success fs-4 d-block mb-1"></i>
+                    No mistakes recorded in submitted tests.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Row 4: Visual Analytics Charts -->
+    <div class="row g-4 mb-4">
+        <!-- Topic Mastery Bar Chart -->
+        <div class="col-lg-7">
+            <div class="custom-card h-100">
+                <div class="custom-card-header">
+                    <h2 class="custom-card-title"><i class="bi bi-bar-chart-fill text-primary"></i>Chapter Mastery (%)</h2>
+                    <span class="badge bg-light text-secondary border">Class {{ current_student.class_level if current_student else 10 }}</span>
+                </div>
+                <div class="custom-card-body">
+                    {% if metrics.total_attempts_completed > 0 %}
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="topicMasteryChart"></canvas>
+                        </div>
+                        <div class="d-flex justify-content-center gap-4 mt-3 small text-muted">
+                            <div><span class="d-inline-block rounded-circle me-1" style="width: 10px; height: 10px; background-color: #EF4444;"></span> Weak (&lt;40%)</div>
+                            <div><span class="d-inline-block rounded-circle me-1" style="width: 10px; height: 10px; background-color: #F59E0B;"></span> Average (40-74%)</div>
+                            <div><span class="d-inline-block rounded-circle me-1" style="width: 10px; height: 10px; background-color: #10B981;"></span> Strong (≥75%)</div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted small">
+                            <i class="bi bi-bar-chart-line fs-1 text-primary opacity-50 mb-2 d-block"></i>
+                            <div class="fw-bold text-dark">No Practice Data Yet</div>
+                            <div>Attempt your first paper to see your topic mastery chart here.</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Score Progress Trend -->
+        <div class="col-lg-5">
+            <div class="custom-card h-100">
+                <div class="custom-card-header">
+                    <h2 class="custom-card-title"><i class="bi bi-graph-up-arrow text-success"></i>Score Progress Trend</h2>
+                    <span class="text-muted small">Recent Attempts</span>
+                </div>
+                <div class="custom-card-body">
+                    {% if metrics.total_attempts_completed > 0 %}
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="scoreTrendChart"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted small">
+                            <i class="bi bi-graph-up fs-1 text-success opacity-50 mb-2 d-block"></i>
+                            <div class="fw-bold text-dark">Progress Graph</div>
+                            <div>Your score trend curve will appear as you complete papers.</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 5: All Curriculum Chapters Status -->
+    <div class="custom-card mb-4">
+        <div class="custom-card-header">
+            <h2 class="custom-card-title"><i class="bi bi-journal-bookmark-fill text-primary"></i>Curriculum Chapter Status</h2>
+            <span class="badge bg-light text-secondary border">{{ metrics.topic_summary|length }} Chapters</span>
+        </div>
+        <div class="custom-card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-secondary">
+                        <tr>
+                            <th class="ps-4">Chapter Name</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Mastery Level</th>
+                            <th>Latest Score</th>
+                            <th>Attempts</th>
+                            <th class="text-end pe-4">Smart Weight</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for topic in metrics.topic_summary %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">{{ topic.chapter_name }}</td>
+                                <td><span class="badge bg-light text-secondary border">{{ topic.subject_name }}</span></td>
+                                <td>
+                                    {% if topic.status == 'Weak' %}
+                                        <span class="badge-status badge-weak"><i class="bi bi-exclamation-circle-fill"></i> Needs Practice</span>
+                                    {% elif topic.status == 'Average' %}
+                                        <span class="badge-status badge-average"><i class="bi bi-dash-circle-fill"></i> Getting Better</span>
+                                    {% elif topic.status == 'Strong' %}
+                                        <span class="badge-status badge-strong"><i class="bi bi-check-circle-fill"></i> Mastered!</span>
+                                    {% else %}
+                                        <span class="badge-status badge-unattempted"><i class="bi bi-question-circle-fill"></i> Not Attempted</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if topic.has_data %}
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-bold small">{{ topic.mastery_score }}%</span>
+                                            <div class="progress flex-grow-1" style="height: 6px; width: 80px; border-radius: 6px;">
+                                                <div class="progress-bar {% if topic.status == 'Weak' %}bg-danger{% elif topic.status == 'Average' %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     role="progressbar" style="width: {{ topic.mastery_score }}%;"></div>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if topic.has_data %}
+                                        <span class="fw-semibold text-secondary small">{{ topic.latest_score_percentage }}%</span>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ topic.number_of_attempts }}</span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    {% if topic.status == 'Weak' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 small">
+                                            +1.8x Focus
+                                        </span>
+                                    {% elif topic.status == 'Average' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning border-opacity-25 px-2 py-1 small">
+                                            1.2x Reinforce
+                                        </span>
+                                    {% elif topic.status == 'Strong' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 small">
+                                            0.7x Revision
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small">1.0x Baseline</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 6: Practice Test History -->
+    <div class="custom-card mb-4">
+        <div class="custom-card-header">
+            <h2 class="custom-card-title"><i class="bi bi-clock-history text-primary"></i>Practice Test History</h2>
+            <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-secondary">View All History</a>
+        </div>
+        <div class="custom-card-body p-0">
+            {% if metrics.all_attempts and metrics.all_attempts|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th class="ps-4">Paper ID</th>
+                                <th>Subject</th>
+                                <th>Submitted Date</th>
+                                <th>Total Marks</th>
+                                <th>Score Scored</th>
+                                <th>Status</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in metrics.all_attempts[:6] %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-primary">#{{ p.id }}</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ p.subject.name }}</div>
+                                        <div class="small text-muted">Class {{ p.subject.class_level }} CBSE</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-dark">{{ p.submitted_at.strftime('%d %b %Y') if p.submitted_at else p.created_at.strftime('%d %b %Y') }}</div>
+                                        <div class="small text-muted">{{ p.submitted_at.strftime('%H:%M') if p.submitted_at else p.created_at.strftime('%H:%M') }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border px-2.5 py-1">{{ p.total_marks }} Marks</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold {% if p.percentage >= 75 %}text-success{% elif p.percentage >= 40 %}text-warning-emphasis{% else %}text-danger{% endif %}">
+                                            {{ p.total_score }} / {{ p.total_marks }} ({{ p.percentage }}%)
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success text-white rounded-pill px-2.5 py-1">
+                                            <i class="bi bi-check-circle me-1"></i> Completed
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('view_paper', paper_id=p.id) }}" class="btn btn-outline-primary" title="View Paper">
+                                                <i class="bi bi-eye"></i> View Paper
+                                            </a>
+                                            <a href="{{ url_for('results', paper_id=p.id) }}" class="btn btn-outline-success" title="View Results">
+                                                <i class="bi bi-award"></i> View Results
+                                            </a>
+                                            <a href="{{ url_for('download_pdf', paper_id=p.id) }}" class="btn btn-outline-secondary" title="Download PDF">
+                                                <i class="bi bi-file-earmark-pdf"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted small">
+                    <i class="bi bi-journal-check fs-2 text-secondary opacity-50 mb-1 d-block"></i>
+                    No completed tests yet.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.dashboardChartData = {
+        labels: {{ chart_labels|safe }},
+        mastery: {{ chart_mastery|safe }},
+        colors: {{ chart_colors|safe }}
+    };
+    window.dashboardTrendData = {
+        dates: {{ trend_dates|safe }},
+        scores: {{ trend_scores|safe }}
+    };
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

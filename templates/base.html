@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Adaptive Exam Practice{% endblock %} — CBSE Student Companion</title>
+    <!-- Google Fonts: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <a href="{{ url_for('dashboard') }}" class="sidebar-brand">
+                    <div class="brand-icon">
+                        <i class="bi bi-mortarboard-fill"></i>
+                    </div>
+                    <div>
+                        <div class="brand-text">Adaptive Exam</div>
+                        <div class="brand-sub">CBSE Practice Companion</div>
+                    </div>
+                </a>
+            </div>
+
+            <ul class="sidebar-nav">
+                <li class="nav-item">
+                    <a href="{{ url_for('dashboard') }}" class="nav-link-custom {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <i class="bi bi-grid-1x2-fill nav-icon text-primary"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('generate_paper') }}" class="nav-link-custom {% if request.endpoint == 'generate_paper' %}active{% endif %}">
+                        <i class="bi bi-magic nav-icon text-purple" style="color: #7c3aed;"></i>
+                        <span>Start Practice Paper</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('history') }}" class="nav-link-custom {% if request.endpoint in ['history', 'view_paper', 'attempt_paper', 'results'] %}active{% endif %}">
+                        <i class="bi bi-journal-check nav-icon text-success"></i>
+                        <span>Practice History</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('question_bank') }}" class="nav-link-custom {% if request.endpoint == 'question_bank' %}active{% endif %}">
+                        <i class="bi bi-collection-play-fill nav-icon text-amber" style="color: #d97706;"></i>
+                        <span>Question Bank & AI</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('settings') }}" class="nav-link-custom {% if request.endpoint == 'settings' %}active{% endif %}">
+                        <i class="bi bi-person-gear nav-icon text-secondary"></i>
+                        <span>Student Profile</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Sidebar User Profile Footer -->
+            <div class="sidebar-footer">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-circle">
+                            {% if current_student and current_student.avatar_url %}
+                                <img src="{{ current_student.avatar_url }}" alt="{{ current_student.name }}">
+                            {% else %}
+                                {{ current_student.name[0] if current_student else 'S' }}
+                            {% endif %}
+                        </div>
+                        <div style="line-height: 1.2;">
+                            <div class="fw-bold text-dark small text-truncate" style="max-width: 110px;">
+                                {{ current_student.name if current_student else 'Student' }}
+                            </div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 0.68rem;">Class {{ current_student.class_level if current_student else 10 }}</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-secondary p-1 px-2" title="Sign Out" style="border-radius: 8px;">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="app-main">
+            <!-- Top Navigation Bar -->
+            <header class="app-topbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-sm btn-light d-lg-none" type="button" id="sidebarToggle">
+                        <i class="bi bi-list fs-5"></i>
+                    </button>
+                    <h1 class="topbar-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                </div>
+
+                <div class="topbar-actions">
+                    <a href="{{ url_for('settings') }}" class="user-badge" title="My Google Profile">
+                        <div class="avatar-circle" style="width: 30px; height: 30px;">
+                            {% if current_student and current_student.avatar_url %}
+                                <img src="{{ current_student.avatar_url }}" alt="{{ current_student.name }}">
+                            {% else %}
+                                {{ current_student.name[0] if current_student else 'S' }}
+                            {% endif %}
+                        </div>
+                        <span>{{ current_student.name if current_student else 'Student' }}</span>
+                        {% if current_student and current_student.is_google_user %}
+                            <svg width="15" height="15" viewBox="0 0 24 24" class="ms-1">
+                                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
+                                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                            </svg>
+                        {% endif %}
+                    </a>
+                </div>
+            </header>
+
+            <!-- Alerts Container -->
+            <div class="px-4 pt-3">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mb-2 rounded-3" role="alert">
+                                {% if category == 'success' %}
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                {% elif category == 'danger' %}
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                {% elif category == 'warning' %}
+                                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                                {% else %}
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                {% endif %}
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Page Content Body -->
+            <div class="content-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Mobile sidebar toggle -->
+    <script>
+        document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+            document.getElementById('appSidebar').classList.toggle('show');
+        });
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Practice History — Adaptive Exam{% endblock %}
+{% block page_title %}Practice Tests & Attempt History{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Filters Header Card -->
+    <div class="custom-card mb-4">
+        <div class="custom-card-body p-3">
+            <form method="GET" action="{{ url_for('history') }}" class="row g-3 align-items-center">
+                <div class="col-md-4">
+                    <label for="status" class="form-label small text-muted mb-1">Filter by Status</label>
+                    <select name="status" id="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Practice Papers</option>
+                        <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Completed & Evaluated</option>
+                        <option value="generated" {% if status_filter == 'generated' %}selected{% endif %}>Pending Attempt</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="subject_id" class="form-label small text-muted mb-1">Filter by Subject</label>
+                    <select name="subject_id" id="subject_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="all">All Subjects</option>
+                        {% for sub in subjects %}
+                            <option value="{{ sub.id }}" {% if subject_filter == sub.id|string %}selected{% endif %}>
+                                Class {{ sub.class_level }} — {{ sub.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4 text-md-end mt-4">
+                    <a href="{{ url_for('generate_paper') }}" class="btn btn-primary-custom btn-sm">
+                        <i class="bi bi-magic me-1"></i> Start Practice Paper
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Papers Table Card -->
+    <div class="custom-card">
+        <div class="custom-card-header">
+            <h2 class="custom-card-title"><i class="bi bi-journal-text text-primary"></i>My Practice Papers ({{ papers|length }})</h2>
+        </div>
+        <div class="custom-card-body p-0">
+            {% if papers %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th class="ps-4">Paper ID</th>
+                                <th>Subject & Mode</th>
+                                <th>Created Date</th>
+                                <th>Total Marks</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in papers %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-primary">#{{ p.id }}</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ p.subject.name }} (Class {{ p.subject.class_level }})</div>
+                                        <div class="small text-muted">
+                                            {{ p.difficulty_preference }} Mode
+                                            {% if p.generation_mode and 'AI' in p.generation_mode %}
+                                                • <span class="text-purple fw-bold" style="color: #7c3aed;">AI Generated</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>{{ p.created_at.strftime('%d %b %Y') }}</div>
+                                        <div class="small text-muted">{{ p.created_at.strftime('%H:%M') }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border px-2.5 py-1">{{ p.total_marks }} Marks</span>
+                                    </td>
+                                    <td>
+                                        {% if p.status == 'submitted' %}
+                                            <div class="fw-bold {% if p.percentage >= 75 %}text-success{% elif p.percentage >= 40 %}text-warning-emphasis{% else %}text-danger{% endif %}">
+                                                {{ p.total_score }} / {{ p.total_marks }}
+                                            </div>
+                                            <div class="small fw-semibold">{{ p.percentage }}%</div>
+                                        {% else %}
+                                            <span class="text-muted small">Not Attempted</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if p.status == 'submitted' %}
+                                            <span class="badge bg-success text-white rounded-pill px-2.5"><i class="bi bi-check-circle me-1"></i> Submitted</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark rounded-pill px-2.5"><i class="bi bi-clock me-1"></i> Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('view_paper', paper_id=p.id) }}" class="btn btn-outline-primary" title="View Paper">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if p.status == 'submitted' %}
+                                                <a href="{{ url_for('results', paper_id=p.id) }}" class="btn btn-outline-success" title="View Results & Solutions">
+                                                    <i class="bi bi-award"></i>
+                                                </a>
+                                            {% else %}
+                                                <a href="{{ url_for('attempt_paper', paper_id=p.id) }}" class="btn btn-primary" title="Enter Marks">
+                                                    <i class="bi bi-pencil-square"></i> Attempt
+                                                </a>
+                                            {% endif %}
+                                            <a href="{{ url_for('download_pdf', paper_id=p.id) }}" class="btn btn-outline-secondary" title="Download PDF">
+                                                <i class="bi bi-file-earmark-pdf"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-journal-x fs-1 text-secondary opacity-50 mb-2 d-block"></i>
+                    <h5 class="fw-bold text-dark">No Practice Papers Found</h5>
+                    <p class="small mb-3">Generate your first practice question paper to begin learning.</p>
+                    <a href="{{ url_for('generate_paper') }}" class="btn btn-sm btn-primary-custom">
+                        <i class="bi bi-magic me-1"></i> Start Practice Paper
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
